@@ -1,0 +1,11 @@
+{
+  "name": "Bioorganisms",
+  "description": "Plataforma de simulación interactiva de microorganismos reactiva a sonido y movimiento.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
