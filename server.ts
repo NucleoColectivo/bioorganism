@@ -60,7 +60,7 @@ Reglas:
 
       res.json({ subtitle: response.text?.trim() });
     } catch (error: any) {
-      console.error("Gemini Error:", error);
+      console.warn("Gemini API fallback triggered:", error.message);
       
       // Fallback in case of API error (like Quota Exceeded)
       const p = req.body?.population || 0;
