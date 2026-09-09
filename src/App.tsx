@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { Maximize, Minimize } from "lucide-react";
+import { Bitacora } from './Bitacora';
 
 // ══════════════════════════════════════════════════════════════════
 //  SPECIES
@@ -243,6 +245,104 @@ function Bar({label,value,color}){
   );
 }
 
+function CoverBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    
+    let dpr = 1, w = 0, h = 0, t = 0;
+    const pts: any[] = [];
+    let reqId: number;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    
+    function resize() {
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      const r = c!.getBoundingClientRect();
+      w = r.width;
+      h = r.height;
+      c!.width = w * dpr;
+      c!.height = h * dpr;
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+      pts.length = 0;
+      for (let i = 0; i < 55; i++) {
+        pts.push({
+          a: Math.random() * Math.PI * 2,
+          r: 20 + Math.random() * Math.min(w, h) * 0.35,
+          s: 0.003 + Math.random() * 0.01,
+          p: Math.random() * 7,
+          x: 0,
+          y: 0
+        });
+      }
+    }
+    
+    function draw() {
+      t += reduced ? 0.1 : 0.55;
+      ctx!.clearRect(0, 0, w, h);
+      const cx = w / 2, cy = h / 2;
+      ctx!.globalCompositeOperation = 'lighter';
+      
+      pts.forEach((p, i) => {
+        p.a += p.s;
+        const pulse = Math.sin(t * 0.018 + p.p) * 0.18 + 0.82;
+        const rr = p.r * pulse;
+        const x = cx + Math.cos(p.a) * rr;
+        const y = cy + Math.sin(p.a * 1.13) * rr * 0.62;
+        const hue = (145 + i * 13 + t * 0.05) % 360;
+        
+        ctx!.beginPath();
+        ctx!.moveTo(cx, cy);
+        ctx!.quadraticCurveTo(
+          (cx + x) / 2 + Math.sin(t * 0.01 + i) * 20,
+          (cy + y) / 2 + Math.cos(t * 0.008 + i) * 20,
+          x, y
+        );
+        ctx!.strokeStyle = `hsla(${hue}, 90%, 60%, 0.07)`;
+        ctx!.lineWidth = 0.6;
+        ctx!.stroke();
+        
+        ctx!.beginPath();
+        ctx!.arc(x, y, 1.5, 0, Math.PI * 2);
+        ctx!.fillStyle = `hsla(${hue}, 100%, 78%, 0.7)`;
+        ctx!.fill();
+      });
+      
+      ctx!.globalCompositeOperation = 'source-over';
+      if (!reduced) reqId = requestAnimationFrame(draw);
+    }
+    
+    window.addEventListener('resize', resize);
+    resize();
+    draw();
+    
+    return () => {
+      window.removeEventListener('resize', resize);
+      if (reqId) cancelAnimationFrame(reqId);
+    };
+  }, []);
+  
+  return (
+    <canvas 
+      ref={canvasRef} 
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 0,
+        opacity: 0.78,
+        pointerEvents: 'none'
+      }}
+      aria-hidden="true"
+    />
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════
 //  COMPONENT
 // ══════════════════════════════════════════════════════════════════
@@ -291,6 +391,28 @@ export default function App(){
   const [zoomDisp, setZoomDisp] = useState(1);
   const [narrativeSubtitle, setNarrativeSubtitle] = useState("");
   const [started, setStarted] = useState(false);
+  const [showBitacora, setShowBitacora] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn("Fullscreen request failed:", err);
+      });
+    } else {
+      document.exitFullscreen().catch(err => {
+        console.warn("Exit fullscreen failed:", err);
+      });
+    }
+  };
 
   // ── Poetic Narrative AI ──────────────────────────────────────────
   useEffect(() => {
@@ -926,48 +1048,160 @@ export default function App(){
   return(
     <div style={{position:"relative",width:"100vw",height:"100vh",background:"#060810",overflow:"hidden",fontFamily:"'Courier New',monospace"}}>
       
+      {/* Fullscreen Button */}
+      <button 
+        onClick={toggleFullscreen}
+        style={{
+          position: "absolute",
+          top: "20px",
+          right: "20px",
+          zIndex: 9999,
+          background: "rgba(5,7,6,0.5)",
+          border: "1px solid #1f3d2a",
+          color: "#39ff9a",
+          padding: "10px",
+          borderRadius: "2px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backdropFilter: "blur(4px)",
+          transition: "all 0.2s"
+        }}
+        onMouseOver={e => { e.currentTarget.style.background = "rgba(5,7,6,0.8)"; e.currentTarget.style.borderColor = "#39ff9a"; }}
+        onMouseOut={e => { e.currentTarget.style.background = "rgba(5,7,6,0.5)"; e.currentTarget.style.borderColor = "#1f3d2a"; }}
+        title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+      >
+        {isFullscreen ? <Minimize size={16} strokeWidth={1.5} /> : <Maximize size={16} strokeWidth={1.5} />}
+      </button>
+
       {!started && (
-        <div style={{
-          position: "absolute", inset: 0, zIndex: 1000,
-          background: "rgba(6,8,16,0.95)", backdropFilter: "blur(8px)",
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          fontFamily: "'Montserrat', sans-serif", color: "#fff", padding: 20
-        }}>
-          <h1 style={{ fontSize: "3rem", fontWeight: 300, marginBottom: "0.5rem", letterSpacing: ".1em", textAlign: "center" }}>
-            <span style={{color: "#f5d742"}}>NÚCLEO</span> COLECTIVO
-          </h1>
-          <h2 style={{ fontSize: "2.5rem", fontWeight: 700, marginBottom: "2.5rem", letterSpacing: ".2em", color: "#2ec4b6", textAlign: "center", textShadow: "0 0 20px rgba(46,196,182,0.4)" }}>
-            BIOORGANISMOS
-          </h2>
-          <div style={{ maxWidth: 600, textAlign: "center", fontSize: "1rem", lineHeight: 1.6, color: "#c0e8cc", marginBottom: "3rem" }}>
-            <p style={{ marginBottom: "1rem" }}>
-              Plataforma de simulación interactiva de microorganismos reactiva a sonido y movimiento.
-            </p>
-            <p style={{ fontSize: "0.9rem", opacity: 0.8 }}>
-              Explora un ecosistema digital de vida artificial. Usa tu micrófono para influir en la colonia,
-              interactúa con el cursor para generar campos magnéticos y observa cómo mutan las especies
-              en tiempo real.
-            </p>
+        showBitacora ? (
+          <Bitacora 
+            micMode={micMode}
+            startMicLive={startMicLive}
+            stopMic={stopMic}
+            camMode={camMode}
+            startCamLive={startCamLive}
+            stopCam={stopCam}
+            onStart={() => setStarted(true)}
+            onClose={() => setShowBitacora(false)}
+          />
+        ) : (
+          <div style={{
+            position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 1000,
+            backgroundColor: "#050706",
+            fontFamily: "'Montserrat', sans-serif", color: "#e9efeb",
+            overflow: "hidden"
+          }}>
+            <CoverBackground />
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 45%, transparent 0, rgba(5,7,6,0.12) 30%, rgba(5,7,6,0.86) 86%)", pointerEvents: "none", zIndex: 0 }} />
+            
+            <div style={{
+              position: "relative", zIndex: 1,
+              height: "100%", width: "100%", overflowY: "auto",
+              display: "flex", flexDirection: "column", alignItems: "center",
+              padding: "clamp(15px, 3vh, 40px) 20px"
+            }}>
+              <div style={{ flex: "1 1 auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", maxWidth: "850px", padding: "10px 0" }}>
+                
+                <div style={{ color: "#39ff9a", font: "600 clamp(7px, 2vw, 9px)/1.7 'JetBrains Mono', monospace", letterSpacing: ".18em", textTransform: "uppercase", textAlign: "center" }}>
+                  NÚCLEO COLECTIVO · ECOSISTEMA INTERACTIVO
+                </div>
+                
+                <h1 style={{ margin: "clamp(12px, 3vh, 26px) auto 0", fontSize: "clamp(36.8px, 10vw, 145px)", lineHeight: 0.84, letterSpacing: "-.065em", fontWeight: 300, whiteSpace: "nowrap", color: "#e9efeb", textAlign: "center" }}>
+                  BIO<em style={{fontStyle: "normal", color: "#39ff9a"}}>ORGANISM</em>
+                </h1>
+
+                <div style={{ width: "min(680px, 100%)", margin: "clamp(25px, 5vh, 45px) auto clamp(40px, 8vh, 75px)", color: "#bdc7c0", fontSize: "clamp(12px, 3.5vw, 21px)", lineHeight: 1.5, textAlign: "center", fontWeight: 300 }}>
+                  Un ecosistema digital donde la vida artificial responde a la presencia humana.<br/>
+                  El sonido esculpe la materia y el movimiento genera energía.
+                </div>
+
+                <div style={{ display: "flex", gap: "clamp(8px, 1.5vh, 14px)", marginBottom: "clamp(20px, 4vh, 3.5rem)", flexDirection: "column", width: "100%", maxWidth: "320px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(4px, 1vh, 8px)", width: "100%" }}>
+                    <span style={{ font: "600 8px 'JetBrains Mono', monospace", letterSpacing: ".15em", color: "#657169", marginBottom: "2px" }}>SENTIDO AUDITIVO</span>
+                    <button
+                      onClick={() => micMode === "off" ? startMicLive() : stopMic()}
+                      style={{
+                        width: "100%", padding: "10px 16px", font: "600 8.5px 'JetBrains Mono', monospace", letterSpacing: ".12em",
+                        background: micMode === "live" ? "#39ff9a" : "rgba(57, 255, 154, 0.05)", 
+                        border: "1px solid #39ff9a", 
+                        color: micMode === "live" ? "#000" : "#39ff9a",
+                        borderRadius: "2px", cursor: "pointer", transition: "all 0.2s ease",
+                        boxShadow: micMode === "live" ? "0 0 15px rgba(57, 255, 154, 0.4)" : "none",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      {micMode === "live" ? "MICRÓFONO CONECTADO" : "CONECTAR MICRÓFONO"}
+                    </button>
+                  </div>
+                  
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(4px, 1vh, 8px)", width: "100%" }}>
+                    <span style={{ font: "600 8px 'JetBrains Mono', monospace", letterSpacing: ".15em", color: "#657169", marginBottom: "2px" }}>SENTIDO VISUAL</span>
+                    <button
+                      onClick={() => camMode === "off" ? startCamLive() : stopCam()}
+                      style={{
+                        width: "100%", padding: "10px 16px", font: "600 8.5px 'JetBrains Mono', monospace", letterSpacing: ".12em",
+                        background: camMode === "live" ? "#3ce0c9" : "rgba(60, 224, 201, 0.05)", 
+                        border: "1px solid #3ce0c9", 
+                        color: camMode === "live" ? "#000" : "#3ce0c9",
+                        borderRadius: "2px", cursor: "pointer", transition: "all 0.2s ease",
+                        boxShadow: camMode === "live" ? "0 0 15px rgba(60, 224, 201, 0.4)" : "none",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      {camMode === "live" ? "CÁMARA CONECTADA" : "CONECTAR CÁMARA"}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "clamp(10px, 1.5vh, 15px)", alignItems: "center", width: "100%" }}>
+                  <button
+                    onClick={() => setStarted(true)}
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: "40px", padding: "0 32px",
+                      background: "#39ff9a0b", border: "1px solid #39ff9a", color: "#dfffea",
+                      font: "600 9px 'JetBrains Mono', monospace", letterSpacing: ".12em",
+                      borderRadius: "2px", cursor: "pointer", transition: "transform 0.2s, background 0.3s",
+                      width: "100%", maxWidth: "320px", marginTop: "4px"
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = "#39ff9a15"}
+                    onMouseOut={e => e.currentTarget.style.background = "#39ff9a0b"}
+                    onMouseDown={e => e.currentTarget.style.transform = "scale(0.98)"}
+                    onMouseUp={e => e.currentTarget.style.transform = "scale(1)"}
+                    onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                  >
+                    INICIAR EXPERIENCIA ↓
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowBitacora(true)}
+                    style={{
+                      width: "100%", maxWidth: "320px", padding: "10px 20px", 
+                      font: "400 8.5px 'JetBrains Mono', monospace", letterSpacing: ".1em",
+                      background: "transparent", border: "1px solid transparent", color: "#87938b",
+                      cursor: "pointer", transition: "all 0.3s ease", textDecoration: "underline"
+                    }}
+                    onMouseOver={(e) => { e.currentTarget.style.color = "#39ff9a"; }}
+                    onMouseOut={(e) => { e.currentTarget.style.color = "#87938b"; }}
+                  >
+                    LEER BITÁCORA DE LA OBRA
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginTop: "auto", textAlign: "center", display: "flex", flexDirection: "column", gap: "clamp(6px, 1.5vh, 12px)", paddingTop: "clamp(10px, 2vh, 20px)" }}>
+                <span style={{ font: "300 10px 'Montserrat', sans-serif", color: "#58645c", letterSpacing: "0.05em" }}>
+                  BIOORGANISM · <strong style={{ color: "#758178", fontWeight: 500 }}>Manuel Palacio</strong> © 2026
+                </span>
+                <a href="http://nucleocolectivo.com/" target="_blank" rel="noreferrer" style={{ font: "400 9px 'JetBrains Mono', monospace", color: "#657169", textDecoration: "none", letterSpacing: "0.15em", transition: "color 0.3s" }} onMouseOver={e=>e.currentTarget.style.color="#39ff9a"} onMouseOut={e=>e.currentTarget.style.color="#657169"}>
+                  NÚCLEO COLECTIVO ↗
+                </a>
+              </div>
+            </div>
           </div>
-          <button
-            onClick={() => setStarted(true)}
-            style={{
-              padding: "14px 32px", fontSize: "1.1rem", fontWeight: 600, letterSpacing: ".1em",
-              background: "transparent", border: "2px solid #2d9e64", color: "#2d9e64",
-              borderRadius: "4px", cursor: "pointer", transition: "all 0.2s ease-in-out"
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "#2d9e64";
-              e.currentTarget.style.color = "#000";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "#2d9e64";
-            }}
-          >
-            INICIAR EXPERIENCIA
-          </button>
-        </div>
+        )
       )}
 
       <video ref={videoRef} muted playsInline style={{position:"absolute",width:1,height:1,opacity:0,pointerEvents:"none"}}/>
