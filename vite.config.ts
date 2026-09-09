@@ -1,21 +1,34 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      {
+        name: 'copy-bitacora',
+        closeBundle() {
+          const source = path.resolve(__dirname, 'bitacora/index.html');
+          const targetDir = path.resolve(__dirname, 'dist/bitacora');
+          const target = path.join(targetDir, 'index.html');
+          if (fs.existsSync(source)) {
+            fs.mkdirSync(targetDir, {recursive: true});
+            fs.copyFileSync(source, target);
+          }
+        },
+      },
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };
