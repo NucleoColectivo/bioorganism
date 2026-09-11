@@ -1158,7 +1158,16 @@ export default function App(){
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "clamp(10px, 1.5vh, 15px)", alignItems: "center", width: "100%" }}>
                   <button
-                    onClick={() => setStarted(true)}
+                    onClick={() => {
+                      if (!audioRef.current.ctx) {
+                        const actx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                        actx.resume();
+                        audioRef.current.ctx = actx;
+                      } else if (audioRef.current.ctx.state === "suspended") {
+                        audioRef.current.ctx.resume();
+                      }
+                      setStarted(true);
+                    }}
                     style={{
                       display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: "40px", padding: "0 32px",
                       background: "#39ff9a0b", border: "1px solid #39ff9a", color: "#dfffea",
