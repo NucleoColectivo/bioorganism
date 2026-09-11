@@ -1,20 +1,33 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Ecosistema Digital
 
-# Run and deploy your AI Studio app
+Una obra interactiva desarrollada por Núcleo Colectivo.
 
-This contains everything you need to run your app locally.
+## Descripción
 
-View your app in AI Studio: https://ai.studio/apps/8c1b2bb4-a0bb-476e-a6cd-88bafe5e1689
+Esta aplicación es una simulación de vida artificial donde microorganismos digitales responden en tiempo real al movimiento y al sonido del espectador. El ecosistema evoluciona, nace, muere y se transforma en respuesta a su entorno, explorando la relación entre lo humano, la tecnología y la biología simulada.
 
-## Run Locally
+## Características
 
-**Prerequisites:**  Node.js
+*   **Física de Entidades**: Microorganismos que interactúan mediante sistemas de partículas, repulsión (flocking) y depredación.
+*   **Visión Computacional**: Utiliza la cámara (o simulación del ratón) para calcular el movimiento del espectador y generar agitación en el medio celular.
+*   **Audio Reactivo**: El micrófono capta la amplitud y los graves del sonido ambiental, afectando las frecuencias y el tamaño de las células.
+*   **Sintetizador FM Integrado**: El sistema genera audio procedural y musical en respuesta a las acciones biológicas de las entidades (nacimiento, muerte y alertas de feromonas).
+*   **Narrativa Poética**: El sistema integra un motor de textos poéticos rotativos (sin dependencia de APIs externas) que acompaña la experiencia según los sucesos de la colonia.
+*   **Completamente Frontend**: El proyecto fue migrado para poder ser desplegado en servicios de alojamiento estático (GitHub Pages, Vercel, etc.) sin necesidad de servidor backend, para facilitar exposiciones en galerías.
 
+## Desarrollo y Despliegue
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Este proyecto está construido con React y Vite.
+
+1.  **Instalación**: Ejecuta `npm install`
+2.  **Desarrollo**: Ejecuta `npm run dev`
+3.  **Construcción para Producción**: Ejecuta `npm run build`. El resultado estará en la carpeta `dist/`.
+
+## Tecnologías
+
+*   React
+*   TypeScript
+*   Vite
+*   Web Audio API
+*   MediaDevices API (getUserMedia)
+*   Canvas 2D para renderizado de alta performance.
