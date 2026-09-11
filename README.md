@@ -1,4 +1,4 @@
-# # # Ecosistema Digital
+## BIOORGANISM Ecosistema Digital
 
 Una obra interactiva desarrollada por Núcleo Colectivo.
 
