@@ -1,6 +1,6 @@
 # Ecosistema Digital
 
-Una obra interactiva desarrollada por Núcleo Colectivo.
+Una obra interactiva desarrollada por Manuel Palacio / Núcleo Colectivo.
 
 ## Descripción
 
