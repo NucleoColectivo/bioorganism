@@ -153,7 +153,7 @@ function playFM(actx,freq,dur,intensity,vol){
     const mg=actx.createGain(),g=actx.createGain();
     osc.type="sine";mod.type="sawtooth";
     mod.frequency.value=freq*.5;mg.gain.value=intensity*80;osc.frequency.value=freq;
-    mod.connect(mg);mg.connect(osc.frequency);osc.connect(g);g.connect(actx.destination);
+    mod.connect(mg);mg.connect(osc.frequency);osc.connect(g);g.connect(actx.master || actx.destination);
     const t=actx.currentTime;
     g.gain.setValueAtTime(0,t);
     g.gain.linearRampToValueAtTime(clamp(intensity*vol,0,.45),t+.01);
@@ -353,19 +353,39 @@ export default function App(){
   const videoRef  = useRef(null);
   const camCvs    = useRef(null);
   const cfgRef    = useRef(mkCfg());
-  const audioRef  = useRef({ctx:null,analyser:null,freq:null,amp:0,bass:0,prevAmp:0});
+  const audioRef  = useRef<any>({ctx:null, stream:null, analyser:null, freq:null, amp:0, bass:0, prevAmp:0, simOsc:null});
   const motRef    = useRef({active:false,motion:0,prevFrame:null,grid:Array.from({length:48},()=>({fx:0,fy:0,mag:0}))});
   const mouseRef  = useRef({x:-999,y:-999,prevX:-999,prevY:-999,down:false});
   const viewRef   = useRef({zoom:1,targetZoom:1});
-  const fieldsRef = useRef([]);
+  const fieldsRef = useRef<any>([]);
   const eventRef  = useRef({id:null,age:0,maxAge:0,label:"",col:"#fff",desc:""});
-  const animRef   = useRef(null);
+  const animRef   = useRef<any>(null);
   const simRef    = useRef({
     organisms:[],foods:[],pheromones:[],particles:[],
     mode:"attract",frame:0,births:0,deaths:0,selectedId:null,paused:false,
     energyH:Array(HIST).fill(0), popH:Array(HIST).fill(0),
   });
-  const triggerEvRef = useRef(null);
+  const triggerEvRef = useRef<any>(null);
+
+  const ensureAudioContext = useCallback(() => {
+    const a = audioRef.current;
+    if (!a.ctx) {
+      const actx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const comp = actx.createDynamicsCompressor();
+      comp.threshold.value = -16;
+      comp.knee.value = 30;
+      comp.ratio.value = 12;
+      comp.attack.value = 0.003;
+      comp.release.value = 0.25;
+      comp.connect(actx.destination);
+      (actx as any).master = comp;
+      a.ctx = actx;
+    }
+    if (a.ctx.state === "suspended") {
+      a.ctx.resume().catch(()=>{});
+    }
+    return a.ctx;
+  }, []);
 
   // ── State (only UI display) ─────────────────────────────────────
   // mic: "off" | "live" | "sim"   cam: "off" | "live" | "sim"
@@ -532,8 +552,9 @@ export default function App(){
   // ── MIC — live (getUserMedia) o simulado (oscilador) ────────────
   const stopMic=useCallback(()=>{
     const a=audioRef.current;
-    a.ctx?.close();
-    Object.assign(a,{ctx:null,analyser:null,freq:null,amp:0,bass:0,prevAmp:0,simOsc:null});
+    if(a.simOsc){a.simOsc.stop();a.simOsc.disconnect();}
+    if(a.stream){a.stream.getTracks().forEach((t:any)=>t.stop());}
+    Object.assign(a,{stream:null,analyser:null,freq:null,amp:0,bass:0,prevAmp:0,simOsc:null});
     setMicMode("off");setMicErr("");
   },[]);
 
@@ -545,25 +566,24 @@ export default function App(){
     }
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-      const ctx=new(window.AudioContext||(window as any).webkitAudioContext)();
-      if(ctx.state==="suspended")await ctx.resume();
+      const ctx=ensureAudioContext();
       const src=ctx.createMediaStreamSource(stream),an=ctx.createAnalyser();
       an.fftSize=256;src.connect(an);
-      Object.assign(a,{ctx,analyser:an,freq:new Uint8Array(an.frequencyBinCount)});
+      Object.assign(a,{stream,analyser:an,freq:new Uint8Array(an.frequencyBinCount)});
       setMicMode("live");setMicErr("");
-    }catch(e){
+    }catch(e:any){
       const msg=e.name==="NotAllowedError"
         ?"Permiso denegado — usa el modo SIMULADO"
         :"Error: "+e.message;
       setMicErr(msg);
     }
-  },[stopMic]);
+  },[stopMic, ensureAudioContext]);
 
   const startMicSim=useCallback(()=>{
     stopMic();
     // Build an AudioContext with a modulated oscillator as fake mic signal
     try{
-      const ctx=new(window.AudioContext||(window as any).webkitAudioContext)();
+      const ctx=ensureAudioContext();
       const osc=ctx.createOscillator();
       const lfo=ctx.createOscillator();
       const lfoGain=ctx.createGain();
@@ -577,10 +597,10 @@ export default function App(){
       // Don't connect to destination — analysis only, no sound output
       osc.start(); lfo.start();
       const a=audioRef.current;
-      Object.assign(a,{ctx,analyser:an,freq:new Uint8Array(an.frequencyBinCount),simOsc:osc});
+      Object.assign(a,{analyser:an,freq:new Uint8Array(an.frequencyBinCount),simOsc:osc});
       setMicMode("sim");setMicErr("");
-    }catch(e){setMicErr("Error simulación: "+e.message);}
-  },[stopMic]);
+    }catch(e:any){setMicErr("Error simulación: "+e.message);}
+  },[stopMic, ensureAudioContext]);
 
   // ── CAM — live (getUserMedia) o simulada (mouse motion) ─────────
   const stopCam=useCallback(()=>{
@@ -1194,13 +1214,7 @@ export default function App(){
                 <div style={{ display: "flex", flexDirection: "column", gap: "clamp(10px, 1.5vh, 15px)", alignItems: "center", width: "100%" }}>
                   <button
                     onClick={() => {
-                      if (!audioRef.current.ctx) {
-                        const actx = new (window.AudioContext || (window as any).webkitAudioContext)();
-                        actx.resume();
-                        audioRef.current.ctx = actx;
-                      } else if (audioRef.current.ctx.state === "suspended") {
-                        audioRef.current.ctx.resume();
-                      }
+                      ensureAudioContext();
                       setStarted(true);
                     }}
                     style={{
